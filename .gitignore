@@ -18,6 +18,7 @@ models/*
 
 /main
 /quantize
+/ggml_example
 
 arm_neon.h
 compile_commands.json
