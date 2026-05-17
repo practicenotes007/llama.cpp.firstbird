@@ -13,12 +13,14 @@ build-static/
 build-no-accel/
 build-sanitize-addr/
 build-sanitize-thread/
+build-arm/
 
 models/*
 
 /main
 /quantize
 /ggml_example
+/firstbird.examples
 
 arm_neon.h
 compile_commands.json
