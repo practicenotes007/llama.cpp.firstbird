@@ -1,0 +1,38 @@
+# llama.cpp.firstbird - Python 依赖
+#
+# 安装方式: pip install -r requirements.txt
+#
+# 分为三组：
+#   [core]    - convert-pth-to-ggml.py 必需
+#   [hf]      - convert_hf_to_pth.py 必需（路径 B）
+#   [lowmem]  - 低内存转换脚本必需（≤16 GB 内存场景）
+#
+# 版本约束说明：
+#   torch:     >=1.13（代码已显式设置 weights_only=False，兼容 2.6+）
+#              低内存脚本用 mmap=True 需要 >=2.1
+#   numpy:     >=1.21（支持 .astype() / .squeeze() / .tofile()）
+#   sentencepiece: >=0.1.96（SentencePieceProcessor 构造函数接口稳定）
+#   transformers:  >=4.28（4.28 起正式支持 LLaMA 架构）
+#   safetensors:   >=0.3（safe_open 懒加载接口）
+#   huggingface_hub: >=0.14（huggingface-cli download 命令）
+#
+# CPU-only torch（省空间，转换任务不需要 GPU）：
+#   pip install torch --index-url https://download.pytorch.org/whl/cpu
+
+# === [core] convert-pth-to-ggml.py 必需 ===
+numpy>=1.21
+torch>=1.13
+sentencepiece>=0.1.96
+
+# === [hf] convert_hf_to_pth.py 必需（路径 B: HF → Meta 原始格式）===
+# 注意: transformers 依赖 torch，如果已装 torch 则不会重复安装
+transformers>=4.28
+
+# === [lowmem] 低内存转换必需（≤16 GB 内存场景）===
+# convert_hf_to_pth_lowmem.py 逐张量读取 safetensors
+# 注意: 低内存脚本使用 mmap=True，需要 torch>=2.1
+safetensors>=0.3
+
+# === [download] 从 HuggingFace 下载权重 ===
+# 提供 huggingface-cli download 命令
+huggingface_hub>=0.14
