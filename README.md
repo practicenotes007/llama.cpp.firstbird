@@ -186,3 +186,145 @@ When running the larger models, make sure you have enough disk space to store al
   know how to utilize it properly. But in any case, you can even disable it with `LLAMA_NO_ACCELERATE=1 make` and the
   performance will be the same, since no BLAS calls are invoked by the current implementation
 
+---
+
+# firstbird 分支 —— RK3588 优化版
+
+本项目是 ggerganov/llama.cpp 的早期 fork，专注于 **RK3588 (Orange Pi 5) 开发板上的 CPU-only 推理优化**。
+
+## 场景
+
+- 硬件: RK3588, 4x Cortex-A76 + 4x Cortex-A55, LPDDR4/4x
+- 模型: 7B Q4_0 (约 3.9 GB 权重)
+- 瓶颈: DDR4 带宽约 35 GB/s，decode 阶段受限严重
+- 当前实测: ~1.5 tok/s，理论上限: 6-7 tok/s
+
+详细瓶颈分析和优化方案见 `OPTIMIZATION_NOTE_RK3588_DDR_BOTTLENECK.md`。
+
+## 基准测试框架
+
+项目自带完整的自动化测试和基准框架 (`bench/`)，覆盖 **正确性 -> 性能基准 -> 系统指标采集 -> 对比 -> 可视化** 全流程。
+
+### 快速开始
+
+```bash
+# 编译
+make
+
+# 正确性测试（修改内核后必须跑）
+make test
+
+# 推理基准
+make bench              # 默认: 4 线程 + 64 token
+make bench-ddr          # DDR 带宽校准 (STREAM + mbw)
+
+# 对比最近结果
+make bench-compare      # 默认对比最近 2 次
+make bench-compare LAST=5
+
+# 可视化
+make bench-plot         # 生成系统指标图 + 对比图 + 趋势图
+```
+
+### 完整流水线（推荐）
+
+```bash
+./bench/run_all.sh -l "本次优化标签" -t 4 -n 64 -P
+```
+
+自动执行: 编译 -> 正确性测试 -> 推理基准 + perf stat -> 系统指标采集 -> DDR 校准 -> 多轮对比 -> 绘图。
+
+所有输出写入 `bench/results/<标签>_<时间戳>/`，包括:
+
+| 文件 | 内容 |
+|------|------|
+| `timing.csv` | 关键时序 (load/predict/per-token/tps) |
+| `config.csv` | 测试配置 |
+| `sysinfo_*.txt` | 系统快照 (CPU/内存/频率/温度) |
+| `cpufreq_*.log` | CPU 频率时序 (CSV) |
+| `thermal_*.log` | 温度时序 (CSV) |
+| `perf_stat.log` | perf 计数器 (如启用 -P) |
+| `llama_output.txt` | llama.cpp 原始输出 |
+| `correctness.log` | 内核正确性测试报告 (run_all.sh) |
+
+### 工具详解
+
+| 命令 | 功能 |
+|------|------|
+| `make test` | 编译并运行 `test_kernels`，覆盖 FP16/量化/dot/mad/GELU/SiLU |
+| `make bench` | 运行 `run_bench.sh`，自动采集系统指标 |
+| `make bench-ddr` | 运行 `run_stream.sh`，下载 STREAM 并测带宽 |
+| `make bench-compare` | 运行 `compare.sh`，并排对比多轮测试 |
+| `make bench-plot` | 运行 `plot_results.py`，生成 PNG 图表 |
+| `make bench-all` | 上述全流程 |
+```
+
+### 对比多个优化版本
+
+```bash
+# 假设跑了三轮测试
+./bench/run_bench.sh -l baseline -t 4 -n 64
+# ... 修改代码 ...
+./bench/run_bench.sh -l sdot_v1  -t 4 -n 64
+# ... 修改代码 ...
+./bench/run_bench.sh -l prefetch_v2 -t 4 -n 64
+
+# 对比
+./bench/compare.sh --last 3
+
+# 输出示例:
+# --- 推理性能 ---
+# 指标                     baseline            sdot_v1             prefetch_v2
+# 加载时间 (ms)              1332.48             1332.48             1332.48
+# 推理时间 (ms)             31378.77            20000.00            15000.00
+# 单 token 延迟 (ms)          61.41               39.06               29.30
+# 吞吐量 (tok/s)              16.28               25.60               34.13
+```
+
+### 输出示例 (系统指标图)
+
+```bash
+python3 bench/plot_results.py --last 1
+```
+
+在结果目录生成 `sys_plots.png`，包含 CPU 频率和温度随时间变化曲线。
+
+## 正确性测试
+
+`test_kernels` 是包含 ggml.c 全部内核的独立测试程序:
+
+| 测试组 | 覆盖范围 |
+|--------|----------|
+| FP16 <-> FP32 | 全部 65536 个 bit pattern 对比 IEEE 754 参考 |
+| Q4_0 量化/反量化 | 6 种数据分布，round-trip 误差 < 0.5 RMSE |
+| vec_dot_q4_0 | 多种长度，SIMD vs 标量参考，误差 < 2% |
+| vec_mad_q4_0 | 随机数据，max_err < 1e-4 |
+| GELU 查表 | 10000 点抽样，相对误差 < 5% |
+| SiLU 查表 | 10000 点抽样，相对误差 < 5% |
+
+```bash
+make test          # 简洁输出
+./test_kernels --verbose  # 详细输出
+./test_kernels --dot-only # 只测 vec_dot
+./test_kernels --bench    # 包含微基准
+```
+
+## DDR 带宽校准
+
+在板子上首次运行时校准实际可用带宽:
+
+```bash
+./bench/run_stream.sh -m
+```
+
+自动下载编译 STREAM，输出单线程和多线程 Triad 带宽，并估算各模型的理论上限。
+
+## 优化笔记
+
+`OPTIMIZATION_NOTE_RK3588_DDR_BOTTLENECK.md` 包含:
+
+- 瓶颈定量分析 (搬运量/缓存命中率/代码根因)
+- 6 个优化方案及优先级
+- 推荐实施路径 (Phase 1/2/3)
+- DDR 实测带宽校准方法
+

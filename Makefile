@@ -185,7 +185,8 @@ utils.o: utils.cpp utils.h
 	$(CXX) $(CXXFLAGS) -c utils.cpp -o utils.o
 
 clean:
-	rm -f *.o main quantize
+	rm -f *.o main quantize test_kernels
+	rm -rf bench/results/
 
 main: main.cpp ggml.o utils.o
 	$(CXX) $(CXXFLAGS) main.cpp ggml.o utils.o -o main $(LDFLAGS)
@@ -195,9 +196,28 @@ quantize: quantize.cpp ggml.o utils.o
 	$(CXX) $(CXXFLAGS) quantize.cpp ggml.o utils.o -o quantize $(LDFLAGS)
 
 #
-# Tests
+# Test and benchmark targets
 #
 
-.PHONY: tests
-tests:
-	bash ./tests/run-tests.sh
+test_kernels: bench/test_kernels.c ggml.c ggml.h
+	$(CC) $(CFLAGS) -I. -o test_kernels bench/test_kernels.c -lm
+
+.PHONY: test bench bench-ddr bench-compare bench-plot bench-all bench-last
+
+test: test_kernels
+	./test_kernels --verbose
+
+bench: test_kernels main
+	./bench/run_bench.sh -l "manual" -t 4 -n 64 -P
+
+bench-ddr: test_kernels
+	./bench/run_stream.sh -l "ddr_calib" -m
+
+bench-compare:
+	@echo "用法: make bench-compare LAST=<N>"
+	@./bench/compare.sh --last $(or $(LAST),2)
+
+bench-plot:
+	@python3 bench/plot_results.py --last $(or $(LAST),3)
+
+bench-all: test bench bench-ddr
