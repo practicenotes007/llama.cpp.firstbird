@@ -32,6 +32,14 @@ build*
 cmake-build-*
 out/
 tmp/
+build-em/
+build-debug/
+build-release/
+build-static/
+build-no-accel/
+build-sanitize-addr/
+build-sanitize-thread/
+build-arm/
 
 models/*
 models-mnt
@@ -58,6 +66,7 @@ models-mnt
 /perplexity
 /q8dot
 /quantize
+<<<<<<< HEAD
 /quantize-stats
 /result
 /save-load-state
@@ -73,6 +82,11 @@ models-mnt
 /tokenize
 /vdot
 /common/build-info.cpp
+=======
+/ggml_example
+/firstbird.examples
+
+>>>>>>> refs/heads/first_bird
 arm_neon.h
 compile_commands.json
 CMakeSettings.json
