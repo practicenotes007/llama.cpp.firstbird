@@ -298,8 +298,8 @@ ifneq ($(filter aarch64%,$(UNAME_M)),)
 	# Apple M1, M2, etc.
 	# Raspberry Pi 3, 4, Zero 2 (64-bit)
 	# Nvidia Jetson
-	MK_CFLAGS   += -mcpu=native
-	MK_CXXFLAGS += -mcpu=native
+	MK_CFLAGS   += -march=armv8.2-a+dotprod
+	MK_CXXFLAGS += -march=armv8.2-a+dotprod
 	JETSON_RELEASE_INFO = $(shell jetson_release)
 	ifdef JETSON_RELEASE_INFO
 		ifneq ($(filter TX2%,$(JETSON_RELEASE_INFO)),)

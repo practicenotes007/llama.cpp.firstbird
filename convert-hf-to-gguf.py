@@ -555,7 +555,7 @@ class BloomModel(Model):
 
             self.gguf_writer.add_tensor(new_name, data)
 
-            if not has_lm_head and name == "word_embeddings.weight":
+            if not has_lm_head and (name == "word_embeddings.weight" or name == "model.embed_tokens.weight"):
                 self.gguf_writer.add_tensor("output.weight", data)
                 print(name, f"=> output.weight, shape = {data.shape}, {old_dtype} --> {data.dtype}")
 
