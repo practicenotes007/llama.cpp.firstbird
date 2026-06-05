@@ -12,6 +12,7 @@
 | **机器学习基础** | 梯度下降、反向传播 (Backpropagation)、自动微分 (Reverse-mode AD) | ★★★★ |
 | **线性代数** | 矩阵乘法、向量点积、范数计算 | ★★★★ |
 | **数值计算** | FP16/FP32 浮点格式 (IEEE 754)、量化 (Quantization) 原理、GELU/SILU 激活函数 | ★★★★ |
+| **DDR 带宽与推理** | [Embedding 占比对带宽利用率的影响](docs/09_ddr_bandwidth_insight.md) — 实践验证: 为什么小模型带宽利用率天然更低 | ★★★★★ |
 | **优化算法** | L-BFGS 算法 (拟牛顿法)、Adam 优化器 (自适应学习率)、线搜索 (Line Search) | ★★★ |
 | **编译预处理** | 宏定义、条件编译 (`#if defined(...)`)、平台检测 | ★★★ |
 
