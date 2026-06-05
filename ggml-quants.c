@@ -6928,10 +6928,22 @@ void ggml_vec_dot_q4_K_q8_K(int n, float * restrict s, size_t bs, const void * r
         const uint8_t * restrict q4 = x[i].qs;
         const int8_t  * restrict q8 = y[i].qs;
 
+        // Prefetch next block's qs data (256 bytes ahead in DDR)
+        if (i + 1 < nb) {
+            __builtin_prefetch(x[i+1].qs, 0, 3);
+            __builtin_prefetch(y[i+1].qs, 0, 3);
+        }
+
         int32_t sumi1 = 0;
         int32_t sumi2 = 0;
 
         for (int j = 0; j < QK_K/64; ++j) {
+            // Prefetch next sub-block (32 bytes of q4 + 64 bytes of q8)
+            if (j + 1 < QK_K/64) {
+                __builtin_prefetch(q4 + 32, 0, 3);
+                __builtin_prefetch(q8 + 64, 0, 3);
+            }
+
             const ggml_uint8x16x2_t q4bits = ggml_vld1q_u8_x2(q4); q4 += 32;
 
             q8bytes = ggml_vld1q_s8_x2(q8); q8 += 32;
